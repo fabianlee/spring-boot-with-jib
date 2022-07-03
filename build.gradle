@@ -1,0 +1,84 @@
+plugins {
+	id 'org.springframework.boot' version '2.7.0'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+        // local docker plugin for building base image
+        id 'com.palantir.docker' version '0.33.0'
+        // jib for packaging up Spring Boot jar on top of base image
+        id 'com.google.cloud.tools.jib' version '3.2.1'
+}
+
+group = 'org.fabianlee'
+version = '0.0.2-SNAPSHOT'
+sourceCompatibility = '11'
+targetCompatibility = '11'
+
+// additional variables
+ext.dockerOwner = 'fabianlee'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+        runtimeOnly 'io.micrometer:micrometer-registry-prometheus:1.9.0'
+        implementation 'org.springdoc:springdoc-openapi-ui:1.6.9'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// makes BuildProperties available from Spring context
+springBoot {
+    buildInfo()
+}
+
+// create OCI compatible image with jib
+// https://github.com/GoogleContainerTools/jib/tree/master/jib-maven-plugin#extended-usage
+// https://github.com/GoogleContainerTools/jib/blob/master/docs/faq.md
+jib {
+    from {
+        // use local docker '-base' image 
+        image = "docker://${project.dockerOwner}/${project.name}-base:${project.version}"
+        //image = "${project.owner}/${project.name}-base:${project.version}"
+    }
+    to {
+        image = "${project.dockerOwner}/${project.name}"
+        tags = [version] // 'latest'
+    }
+    container {
+        mainClass = "${group}.${project.name}.SpringMainApplication"
+        ports = ['8080','8081']
+        creationTime = 'USE_CURRENT_TIMESTAMP'
+        user = 'spring:spring' // process run as non-root
+    }
+    setAllowInsecureRegistries(true)
+}
+
+// create minimal base image project for OS package and commands
+// https://plugins.gradle.org/plugin/com.palantir.docker
+docker {
+    name "${project.dockerOwner}/${project.name}-base:${project.version}"
+    dockerfile file("$buildDir/resources/main/docker/Dockerfile.base")
+}
+
+// for debug purposes
+task defaultProperties { 
+    println "Project: $project" 
+    println "Name: $name" 
+    println "Path: $path" 
+    println "Project directory: $projectDir" 
+    println "Build directory: $buildDir" 
+    println "Version: $version" 
+    println "Group: $project.group" 
+    println "dockerOwner: $project.dockerOwner" 
+    println "Description: $project.description" 
+    println "AntBuilder: $ant" 
+}
