@@ -46,8 +46,10 @@ springBoot {
 jib {
     from {
         // use local docker '-base' image 
-        image = "docker://${project.dockerOwner}/${project.name}-base:${project.version}"
-        //image = "${project.owner}/${project.name}-base:${project.version}"
+        //image = "docker://${project.dockerOwner}/${project.name}-base:${project.version}"
+
+        // use remote Docker hub version to show independence from local Daemon
+        image = "${project.dockerOwner}/${project.name}-base:${project.version}"
     }
     to {
         image = "${project.dockerOwner}/${project.name}"
